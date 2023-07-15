@@ -45,8 +45,12 @@
                     <ul class="notesCon">
                     </ul>
                   </div>    
+                
+                  <div class="flex flex-row gap-2">
+                    <button class="playBtn hidden btn btn-outline px-10" onclick="play();">Play Song!</button>
+                    <button class="initBtn hidden btn btn-outline px-10">초기화</button>
+                  </div>
 
-                  <button class="initBtn hidden btn btn-outline px-10">초기화</button>
             </div>
 
             <!-- Export Result -->
@@ -71,13 +75,17 @@ const copyBtn = document.querySelector(".copyBtn")
 const notesListCon = document.querySelector(".notesCon")
 const progressBar = document.querySelector(".progressBar")
 const initBtn = document.querySelector(".initBtn")
+const playBtn = document.querySelector(".playBtn")
 let curretNotes = []
 const maxNote = 4
 
 const indicator = document.querySelector(".indicator-item")
 
+
 const notes = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const hz = [220, 233, 246, 262, 277, 293, 311, 329, 349, 369, 391, 415, 440, 466, 493]
+let possible = true
+
 
 function zip(arrays) {
     return arrays[0].map(function(_,i){
@@ -87,8 +95,10 @@ function zip(arrays) {
 
 const make_note = (note, index) => {
     let mark = ""
-    if (index >= 12){
-        mark = "_2"
+    if (index >= 3){
+        mark = "5"
+    } else {
+        mark = "4"
     }
     return note.replace('#', "s")+mark
 }
@@ -99,7 +109,6 @@ const arduinoNoteDefine = zip([notes, hz]).map((d,i) => {
     
     return `#define ${make_note(note, i)} ${h}`
 })
-
 
 function updateNoteList() {
     notesListCon.innerHTML = ""
@@ -139,6 +148,7 @@ function update() {
     if (curretNotes.length > 0) {
         // const classes = initBtn.classList
         initBtn.classList.remove("hidden")
+        playBtn.classList.remove("hidden")
         indicator.classList.remove("hidden")
 
         setTimeout(() => {
@@ -146,7 +156,7 @@ function update() {
         }, 1000)
     }else{
         initBtn.classList.add("hidden")
-
+        playBtn.classList.add("hidden")
     }
 }
 
@@ -157,20 +167,17 @@ function initialize() {
 
 initBtn.addEventListener("click", initialize)
 
-function playNote(e) {
-    const audio = document.querySelector(`audio[data-key="${e.keyCode}"]`),
-    key = document.querySelector(`.key[data-key="${e.keyCode}"]`);
-    if (!key) return;
-    const keyNote = key.getAttribute("data-note");
-    key.classList.add("playing");
-    note.innerHTML = keyNote;
-    audio.currentTime = 0;
-    audio.play();
+function playNote(note){
+    let audio = new Audio(`/piano_keys/${note}.mp3`)
+    audio.play()
 }
 
 function play(index){
     // console.log(index)
+    if(!possible) return
     const target_note = make_note(notes[index], index)
+
+    playNote(target_note)
 
     if(curretNotes.length < maxNote){
         curretNotes.push(target_note)
@@ -180,6 +187,30 @@ function play(index){
 
 keys.forEach((key, index) => key.addEventListener("click", ()=>play(index), false))
 // if i have enough time implementing duratino ...
+
+function listen(index) {
+    if (index >= curretNotes.length) {
+        possible = true
+        return
+    }
+
+    playNote(curretNotes[index])
+
+    return setTimeout(() => {
+        listen(index+1)
+    }, 200)
+}
+
+function listenSong(){
+    if (!possible || curretNotes.length == 0) return
+
+    possible = false
+
+    listen(0)
+}
+
+playBtn.addEventListener("click", listenSong)
+
 
 const copyCodeCotent = () => {
     const text = code.innerText
