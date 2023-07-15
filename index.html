@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Maker for Arduino</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/daisyui/3.2.1/full.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+    <main class="flex w-screen h-screen bg-content flex-col">
+        <!-- Title Container -->
+        <div class="navbar bg-base-100 dark:border-b-2 dark:border-content">
+            <a class="btn btn-ghost normal-case text-xl">Muduinoker</a>
+          </div>
+
+        <div class="flex-1 overflow-hidden overflow-y-scroll gap-20 flex flex-col justify-start items-center">
+            <!-- PIANO -->
+            <div class="max-w-[500px] flex flex-row relative mt-20 keys">
+                <button data-key="19" class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">A</button>
+                <button class="text-white absolute left-[7%] top-0 w-[45px] bg-black text-center pt-[70px] border border-black rounded-md">A#</button>
+                <button class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">B</button>
+                <button class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">C</button>
+                <button class="text-white  absolute left-[28.4%] top-0 w-[45px] bg-black text-center pt-[70px] border border-black rounded-md">C#</button>
+                <button class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">D</button>
+                <button class="text-white  absolute left-[40%] top-0 w-[45px] bg-black text-center pt-[70px] border border-black rounded-md">D#</button>
+                <button class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">E</button>
+                <button class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">F</button>
+                <button class="text-white  absolute left-[62%] top-0 w-[45px] bg-black text-center pt-[70px] border border-black rounded-md">F#</button>
+                <button class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">G</button>
+                <button class="text-white  absolute left-[73%] top-0 w-[45px] bg-black text-center pt-[70px] border border-black rounded-md">G#</button>
+                <button class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">A</button>
+                <button class="text-white  absolute left-[84%] top-0 w-[45px] bg-black text-center pt-[70px] border border-black rounded-md">A#</button>
+                <button class="w-[50px] bg-white text-center pt-[150px] border border-black rounded-md hover:bg-gray-100">B</button>
+            </div>
+
+            <!-- NOTE Editor -->
+            <div class="w-full flex flex-col justify-center items-center">
+                <progress class="progressBar progress progress-primary w-full max-w-[400px]" value="0" max="100"></progress>
+
+
+                <div class="text-sm breadcrumbs p-5">
+                    <ul class="notesCon">
+                    </ul>
+                  </div>    
+
+                  <button class="initBtn hidden btn btn-outline px-10">초기화</button>
+            </div>
+
+            <!-- Export Result -->
+            <div class="w-full max-w-[450px] flex flex-col justify-center items-center gap-2 mb-10 indicator">
+                <span class="indicator-item badge badge-primary hidden">new</span> 
+                <div class="code select-none w-full max-h-[300px] min-h-[200px] overflow-hidden overflow-y-scroll bg-base-200 rounded-lg shadow-lg p-3 whitespace-break-spaces">
+                </div>
+                <button class="copyBtn w-full text-white bg-black py-2 rounded-lg shadow-lg hover:bg-gray-800">Copy!</button>
+            </div>
+            
+        </div>          
+    </main>
+</body>
+
+<script>
+const keysCon = document.querySelector(".keys")
+const keys = keysCon.querySelectorAll("button")
+
+const code = document.querySelector(".code")
+const copyBtn = document.querySelector(".copyBtn")
+
+const notesListCon = document.querySelector(".notesCon")
+const progressBar = document.querySelector(".progressBar")
+const initBtn = document.querySelector(".initBtn")
+let curretNotes = []
+const maxNote = 4
+
+const indicator = document.querySelector(".indicator-item")
+
+const notes = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+const hz = [220, 233, 246, 262, 277, 293, 311, 329, 349, 369, 391, 415, 440, 466, 493]
+
+function zip(arrays) {
+    return arrays[0].map(function(_,i){
+        return arrays.map(function(array){return array[i]})
+    });
+}
+
+const make_note = (note, index) => {
+    let mark = ""
+    if (index >= 12){
+        mark = "_2"
+    }
+    return note.replace('#', "s")+mark
+}
+
+const arduinoNoteDefine = zip([notes, hz]).map((d,i) => {
+    const note = d[0]
+    const h = d[1]
+    
+    return `#define ${make_note(note, i)} ${h}`
+})
+
+
+function updateNoteList() {
+    notesListCon.innerHTML = ""
+    if (curretNotes.length == 0) return
+    
+    curretNotes.map((note, index) => {
+        const li = document.createElement("li")
+        li.innerText = note
+        notesListCon.appendChild(li)
+    })
+}
+
+function updateProgress() {
+    progressBar.value = curretNotes.length / maxNote * 100
+}
+
+function makeCode() {
+    const base = arduinoNoteDefine.join("\n")
+
+    if(curretNotes.length == 0) return ""
+
+    const noteCode = `int tempo=200;\nint notes[${curretNotes.length}] = {${curretNotes.join(",")}};`    
+
+    return `${base}\n${noteCode}`
+}
+
+function udpateCodeBlock() {
+    const _code = makeCode()
+
+    code.innerText = _code
+}
+
+function update() {
+    updateNoteList()
+    updateProgress()
+    udpateCodeBlock()
+    if (curretNotes.length > 0) {
+        // const classes = initBtn.classList
+        initBtn.classList.remove("hidden")
+        indicator.classList.remove("hidden")
+
+        setTimeout(() => {
+            indicator.classList.add("hidden")
+        }, 1000)
+    }else{
+        initBtn.classList.add("hidden")
+
+    }
+}
+
+function initialize() {
+    curretNotes = []
+    update()
+}
+
+initBtn.addEventListener("click", initialize)
+
+function playNote(e) {
+    const audio = document.querySelector(`audio[data-key="${e.keyCode}"]`),
+    key = document.querySelector(`.key[data-key="${e.keyCode}"]`);
+    if (!key) return;
+    const keyNote = key.getAttribute("data-note");
+    key.classList.add("playing");
+    note.innerHTML = keyNote;
+    audio.currentTime = 0;
+    audio.play();
+}
+
+function play(index){
+    // console.log(index)
+    const target_note = make_note(notes[index], index)
+
+    if(curretNotes.length < maxNote){
+        curretNotes.push(target_note)
+        update()
+    }
+}
+
+keys.forEach((key, index) => key.addEventListener("click", ()=>play(index), false))
+// if i have enough time implementing duratino ...
+
+const copyCodeCotent = () => {
+    const text = code.innerText
+    navigator.clipboard.writeText(text)
+    .then(() => {
+        console.log('Text copied to clipboard');
+    })
+    .catch(err => {
+        console.error('Error in copying text: ', err);
+    });
+}
+
+copyBtn.addEventListener("click", copyCodeCotent)
+code.addEventListener("click", copyCodeCotent)
+
+</script>
+</html>
